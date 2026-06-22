@@ -12,7 +12,7 @@
 
 #include "get_next_line.h"
 
-int	found_newline(t_list *list)
+int	found_newline(t_list *list, char cut_char)
 {
 	int	i;
 
@@ -23,7 +23,7 @@ int	found_newline(t_list *list)
 		i = 0;
 		while (list->str_buf[i])
 		{
-			if (list->str_buf[i] == CUT_CHAR)
+			if (list->str_buf[i] == cut_char)
 				return (1);
 			i++;
 		}
@@ -48,7 +48,10 @@ void	append_node(t_list **list, char *buf)
 
 	new = malloc(sizeof(t_list));
 	if (!new)
+	{
+		free(buf);
 		return ;
+	}
 	new->str_buf = buf;
 	new->next = NULL;
 	if (!*list)
@@ -60,7 +63,7 @@ void	append_node(t_list **list, char *buf)
 	}
 }
 
-int	len_until_newline(t_list *list)
+int	len_until_newline(t_list *list, char cut_char)
 {
 	int	len;
 	int	i;
@@ -71,7 +74,7 @@ int	len_until_newline(t_list *list)
 		i = 0;
 		while (list->str_buf[i])
 		{
-			if (list->str_buf[i] == CUT_CHAR)
+			if (list->str_buf[i] == cut_char)
 				return (len + 1);
 			len++;
 			i++;
@@ -81,7 +84,7 @@ int	len_until_newline(t_list *list)
 	return (len);
 }
 
-void	copy_str(t_list *list, char *str)
+void	copy_str(t_list *list, char *str, char cut_char)
 {
 	int	i;
 	int	k;
@@ -92,9 +95,9 @@ void	copy_str(t_list *list, char *str)
 		i = 0;
 		while (list->str_buf[i])
 		{
-			if (list->str_buf[i] == CUT_CHAR)
+			if (list->str_buf[i] == cut_char)
 			{
-				str[k++] = CUT_CHAR;
+				str[k++] = cut_char;
 				str[k] = '\0';
 				return ;
 			}

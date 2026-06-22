@@ -35,7 +35,7 @@ void	dealloc_list(t_list **list, t_list *clean_node)
 	}
 }
 
-void	refine_list(t_list **list)
+void	refine_list(t_list **list, char cut_char)
 {
 	t_list	*last;
 	t_list	*clean;
@@ -49,13 +49,18 @@ void	refine_list(t_list **list)
 	if (!clean || !last)
 		return (free(clean));
 	clean->next = NULL;
-	while (last->str_buf[i] && last->str_buf[i] != CUT_CHAR)
+	while (last->str_buf[i] && last->str_buf[i] != cut_char)
 		i++;
-	if (last->str_buf[i] == CUT_CHAR)
+	if (last->str_buf[i] == cut_char)
 		i++;
 	while (last->str_buf[i + j])
 		j++;
 	clean->str_buf = malloc(j + 1);
+	if (!clean->str_buf)
+	{
+		free(clean);
+		return (dealloc_list(list, NULL));
+	}
 	j = 0;
 	while (last->str_buf[i])
 		clean->str_buf[j++] = last->str_buf[i++];
@@ -63,27 +68,27 @@ void	refine_list(t_list **list)
 	dealloc_list(list, clean);
 }
 
-char	*get_line_from_list(t_list *list)
+char	*get_line_from_list(t_list *list, char cut_char)
 {
 	int		len;
 	char	*str;
 
 	if (!list)
 		return (NULL);
-	len = len_until_newline(list);
+	len = len_until_newline(list, cut_char);
 	str = malloc(len + 1);
 	if (!str)
 		return (NULL);
-	copy_str(list, str);
+	copy_str(list, str, cut_char);
 	return (str);
 }
 
-void	create_list(t_list **list, int fd)
+void	create_list(t_list **list, int fd, char cut_char)
 {
 	int		n;
 	char	*buf;
 
-	while (!found_newline(*list))
+	while (!found_newline(*list, cut_char))
 	{
 		buf = malloc(BUFFER_SIZE + 1);
 		if (!buf)
@@ -101,17 +106,17 @@ void	create_list(t_list **list, int fd)
 	}
 }
 
-char	*get_next_line(int fd)
+char	*get_next_line_c(int fd, char cut_char)
 {
-	static t_list	*list[1024];
+	static t_list	*list[OPEN_MAX];
 	char			*line;
 
-	if (fd < 0 || fd >= 1024 || BUFFER_SIZE <= 0)
+	if (fd < 0 || fd >= OPEN_MAX || BUFFER_SIZE <= 0)
 		return (NULL);
-	create_list(&list[fd], fd);
+	create_list(&list[fd], fd, cut_char);
 	if (!list[fd])
 		return (NULL);
-	line = get_line_from_list(list[fd]);
-	refine_list(&list[fd]);
+	line = get_line_from_list(list[fd], cut_char);
+	refine_list(&list[fd], cut_char);
 	return (line);
 }

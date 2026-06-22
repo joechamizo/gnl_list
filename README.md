@@ -5,7 +5,7 @@
 To keep the project understandable, maintainable, and aligned with the 42 evaluation process, the development was structured around dynamic reading requirements, a rigorous memory-safe architecture, and an adaptive code review workflow.
 
 - **Memory architecture and structure:** Designed and implemented a custom memory handling mechanism using singly linked lists to safeguard data between execution calls without relying on massive buffer reallocations.
-- **Dynamic parsing:** Implemented a custom `CUT_CHAR` macro feature, allowing the function to adapt to any delimiter character dynamically at compile time instead of hardcoding the traditional newline character.
+- **Dynamic parsing:** Implemented a runtime delimiter parameter, allowing the function to adapt to any delimiter character without recompiling.
 - **Bonus architecture:** Developed a multi-fd tracking system using static arrays, allowing independent reading streams from multiple file descriptors simultaneously without data cross-contamination.
 
 ---
@@ -33,7 +33,7 @@ The project is built around a modular linked list architecture. The input stream
 
 For this implementation, an algorithm based on Singly Linked Lists was chosen. The main reasons are:
 - **Dynamic Flexibility:** The list allows storing read fragments of any size without the need to reallocate and copy the entire string in each iteration, optimizing heap usage.
-- **Remainder Management:** The leftover data from a read (what remains after the character defined in `CUT_CHAR`) is naturally managed when clearing the list, keeping only the necessary node for the next call.
+- **Remainder Management:** The leftover data from a read (what remains after the selected delimiter) is naturally managed when clearing the list, keeping only the necessary node for the next call.
 - **Modularity and the Norm:** The use of lists makes it easier to divide the code into short logical functions (under 25 lines), tasked with atomic duties such as node creation and final line extraction.
 - **Adaptability:** The list logic facilitates searching for any delimiter character without compromising the structure of the stored data.
 
@@ -51,7 +51,7 @@ For the bonus part, instead of a single pointer, we declare an array of static p
 
 ### 2. Buffer Remainder Management
 
-When the read loop detects the delimiter character (defined by `CUT_CHAR`), the list contains the current line plus some trailing remainder data from the last buffer read. Memory safety and efficiency are handled in three synchronized steps:
+When the read loop detects the selected delimiter character, the list contains the current line plus some trailing remainder data from the last buffer read. Memory safety and efficiency are handled in three synchronized steps:
 
 1. **Line Extraction:** The function calculates the exact length from the start of the list up to the delimiter character, allocates the precise amount of memory on the heap, and flattens the node content into a single clean, null-terminated string to return.
 2. **Remainder Isolation:** A dedicated utility function searches for the delimiter inside the last processed node, isolates the leftover data that follows it, and creates a brand-new node specifically to house this remainder.
@@ -62,9 +62,9 @@ When the read loop detects the delimiter character (defined by `CUT_CHAR`), the 
 To meet the rigorous standards of 42, the codebase explicitly addresses several severe runtime situations:
 
 - **Ultra Large Buffers (e.g., BUFFER_SIZE=10M):** Prevents stack overflow by allocating the read buffer directly on the heap (`malloc`) rather than defining local stack arrays (`char buf[BUFFER_SIZE]`), bypassing kernel limits.
-- **Files Lacking a Delimiter / EOF:** If the file ends abruptly without encountering `CUT_CHAR`, the remaining buffer structure is cleanly extracted as the final string, and the static track pointer is set to `NULL` to signify a successful end of stream.
+- **Files Lacking a Delimiter / EOF:** If the file ends abruptly without encountering the selected delimiter, the remaining buffer structure is cleanly extracted as the final string, and the static track pointer is set to `NULL` to signify a successful end of stream.
 - **Interleaved Errors mid-stream:** If a `read()` operation returns an error (`-1`) midway through execution, the function immediately releases all previously accumulated nodes in the list to fully eliminate memory leaks before returning `NULL`.
-- **Empty strings or Binary files:** The list logic evaluates null-bytes and non-conventional bytes safely without truncating valid reading segments unpredictably.
+- **Empty strings:** The implementation handles empty inputs safely, but it still relies on C strings, so embedded `'\0'` bytes are not supported.
 
 ---
 
@@ -92,14 +92,24 @@ According to the project requirements, the program must handle different buffer 
 
 ### Compilation
 
-Standard compilation (cut by newline character):
+Standard compilation (default delimiter is newline):
 ```bash
 cc -Wall -Wextra -Werror -D BUFFER_SIZE=42 get_next_line.c get_next_line_utils.c main.c
 ```
 
-Custom compilation (example: cut by commas for CSV files processing):
+Custom use (example: cut by commas for CSV files processing):
 ```bash
-cc -D BUFFER_SIZE=42 -D CUT_CHAR="','" get_next_line.c get_next_line_utils.c main.c
+cc -D BUFFER_SIZE=42 get_next_line.c get_next_line_utils.c main.c
+```
+
+Use the default wrapper:
+```c
+line = get_next_line(fd);
+```
+
+Use a custom delimiter at runtime:
+```c
+line = get_next_line_c(fd, ',');
 ```
 
 ### Running the Binary
@@ -117,7 +127,8 @@ The program handles invalid file descriptors and unexpected runtime events grace
 - returns `NULL` on invalid file descriptors (`fd < 0`);
 - returns `NULL` on read system call errors (`read() == -1`);
 - safely frees all internal allocated list nodes if an error occurs mid-stream;
-- behaves stably under non-conventional cutting characters (such as spaces or null characters).
+- behaves stably under non-conventional cutting characters such as spaces;
+- expects standard C strings, so embedded null bytes are not supported.
 
 ---
 
@@ -132,8 +143,8 @@ The program handles invalid file descriptors and unexpected runtime events grace
 ### AI Usage Statement
 
 AI assistance was used as a support tool during the project workflow, mainly for:
-- **Refactoring:** Optimizing functions to comply with the Norminette after implementing the `CUT_CHAR` logic.
-- **Algorithmic Design:** Adapting the search algorithm to support dynamic delimiter characters defined via preprocessing macros.
+- **Refactoring:** Optimizing functions to comply with the Norminette after implementing the runtime delimiter logic.
+- **Algorithmic Design:** Adapting the search algorithm to support dynamic delimiter characters passed at runtime.
 - **Documentation:** Creating and formatting this README.md file structure.
 - **Debugging:** Analyzing edge cases when using unconventional cutting characters (such as spaces or null characters).
 
